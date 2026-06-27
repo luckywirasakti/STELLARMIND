@@ -1,5 +1,6 @@
-import React, { useState, useRef, useEffect, useMemo, MouseEvent as ReactMouseEvent, WheelEvent as ReactWheelEvent } from 'react';
-import { Plus, X, Maximize, Minimize, Crosshair, Star, Trash2, MousePointer2, Link2, Rocket, Download, Upload, Camera, Bold, Italic, List, Image as ImageIcon } from 'lucide-react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import type { MouseEvent as ReactMouseEvent } from 'react';
+import { Plus, X, Crosshair, Star, Trash2, MousePointer2, Link2, Download, Camera, Bold, Italic, List, Image as ImageIcon, Upload, Rocket } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { sfx } from './SoundEngine';
 import './index.css';
@@ -63,17 +64,6 @@ function App() {
   }, []);
 
   // --- PANNING & ZOOMING ---
-  const handleWheel = (e: ReactWheelEvent) => {
-    e.preventDefault();
-    const zoomSensitivity = 0.001;
-    const delta = -e.deltaY * zoomSensitivity;
-    setViewport(prev => {
-      const newScale = Math.min(Math.max(0.2, prev.scale + delta), 4);
-      // Zoom towards cursor would require offset calculations, for simplicity we just scale
-      return { ...prev, scale: newScale };
-    });
-  };
-
   const handlePointerDown = (e: ReactMouseEvent) => {
     if ((e.target as HTMLElement).closest('.glass-panel') || (e.target as HTMLElement).closest('.star-node')) {
       return; // Don't pan if clicking UI or nodes
@@ -113,17 +103,17 @@ function App() {
       const worldX = (-viewport.x + e.clientX) / viewport.scale;
       const worldY = (-viewport.y + e.clientY) / viewport.scale;
       
-      let closestNode = null;
+      let closestNode: StarNode | null = null;
       let minDistance = 60;
       
-      nodes.forEach(n => {
-        if (n.id === linkSourceNodeId) return;
+      for (const n of nodes) {
+        if (n.id === linkSourceNodeId) continue;
         const dist = Math.hypot(n.x - worldX, n.y - worldY);
         if (dist < minDistance) {
           closestNode = n;
           minDistance = dist;
         }
-      });
+      }
       
       if (closestNode) {
         const exists = connections.some(c => 
@@ -131,7 +121,7 @@ function App() {
           (c.sourceId === closestNode!.id && c.targetId === linkSourceNodeId)
         );
         if (!exists) {
-          setConnections([...connections, { id: generateId(), sourceId: linkSourceNodeId, targetId: closestNode.id }]);
+          setConnections([...connections, { id: generateId(), sourceId: linkSourceNodeId, targetId: closestNode!.id }]);
           sfx.play('connect');
         }
       }
