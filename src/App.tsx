@@ -1,6 +1,7 @@
-import React, { useState, useRef, useEffect, MouseEvent as ReactMouseEvent, WheelEvent as ReactWheelEvent } from 'react';
+import React, { useState, useRef, useEffect, useMemo, MouseEvent as ReactMouseEvent, WheelEvent as ReactWheelEvent } from 'react';
 import { Plus, X, Maximize, Minimize, Crosshair, Star, Trash2, MousePointer2, Link2, Rocket, Download, Upload, Camera, Bold, Italic, List, Image as ImageIcon } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import { sfx } from './SoundEngine';
 import './index.css';
 
 interface StarNode {
@@ -40,6 +41,26 @@ function App() {
   const [interactionMode, setInteractionMode] = useState<'drag' | 'link'>('drag');
   
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const bgStarsLayer1 = useMemo(() => {
+    return Array.from({ length: 150 }).map((_, i) => ({
+      id: `bg1-${i}`,
+      x: (Math.random() - 0.5) * 4000,
+      y: (Math.random() - 0.5) * 3000,
+      size: Math.random() * 2 + 1,
+      opacity: Math.random() * 0.5 + 0.3
+    }));
+  }, []);
+
+  const bgStarsLayer2 = useMemo(() => {
+    return Array.from({ length: 200 }).map((_, i) => ({
+      id: `bg2-${i}`,
+      x: (Math.random() - 0.5) * 4000,
+      y: (Math.random() - 0.5) * 3000,
+      size: Math.random() * 3 + 1.5,
+      opacity: Math.random() * 0.6 + 0.4
+    }));
+  }, []);
 
   // --- PANNING & ZOOMING ---
   const handleWheel = (e: ReactWheelEvent) => {
@@ -111,6 +132,7 @@ function App() {
         );
         if (!exists) {
           setConnections([...connections, { id: generateId(), sourceId: linkSourceNodeId, targetId: closestNode.id }]);
+          sfx.play('connect');
         }
       }
       setLinkSourceNodeId(null);
@@ -152,6 +174,7 @@ function App() {
   const handleNodePointerDown = (e: ReactMouseEvent, id: string) => {
     e.stopPropagation();
     setSelectedNodeId(id);
+    sfx.play('click');
     if (interactionMode === 'link') {
       const node = nodes.find(n => n.id === id);
       if (node) {
@@ -180,12 +203,14 @@ function App() {
     
     setNodes([...nodes, newNode]);
     setSelectedNodeId(newNode.id);
+    sfx.play('create');
   };
 
   const handleDeleteNode = (id: string) => {
     setNodes(nodes.filter(n => n.id !== id));
     setConnections(connections.filter(c => c.sourceId !== id && c.targetId !== id));
     if (selectedNodeId === id) setSelectedNodeId(null);
+    sfx.play('delete');
   };
 
   const handleExport = () => {
@@ -216,6 +241,7 @@ function App() {
   };
 
   const handleExportImage = async () => {
+    sfx.play('click');
     if (!containerRef.current) return;
     try {
       const html2canvas = (await import('html2canvas')).default;
@@ -234,6 +260,31 @@ function App() {
     } catch (e) {
       console.error('Failed to export image', e);
     }
+  };
+
+  const handleResetView = () => {
+    if (nodes.length === 0) {
+      setViewport({ x: 0, y: 0, scale: 1 });
+      return;
+    }
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    nodes.forEach(n => {
+      minX = Math.min(minX, n.x);
+      maxX = Math.max(maxX, n.x);
+      minY = Math.min(minY, n.y);
+      maxY = Math.max(maxY, n.y);
+    });
+    
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+    
+    const scale = window.innerWidth < 800 ? 0.6 : 1;
+    setViewport({
+      x: window.innerWidth / 2 - centerX * scale,
+      y: window.innerHeight / 2 - centerY * scale,
+      scale
+    });
+    sfx.play('click');
   };
 
   const handleLoadSample = () => {
@@ -301,6 +352,7 @@ function App() {
     
     const newText = `${before}${prefix}${selected || 'text'}${suffix}${after}`;
     updateSelectedNode({ content: newText });
+    sfx.play('click');
     
     setTimeout(() => {
       textarea.focus();
@@ -312,12 +364,12 @@ function App() {
     <>
       <div className="nebula-bg" />
       
-      {/* Mobile Portrait Block */}
-      <div id="portrait-block">
+      {/* Mobile Block */}
+      <div id="mobile-block">
         <Star size={48} color="var(--star-glow)" fill="var(--star-glow)" style={{ marginBottom: 20 }} className="pulse-glow" />
-        <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", letterSpacing: '2px', margin: 0 }}>PLEASE ROTATE YOUR DEVICE</h2>
+        <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", letterSpacing: '2px', margin: 0 }}>PLEASE USE A LARGER SCREEN</h2>
         <p style={{ color: 'var(--text-secondary)', marginTop: 10, maxWidth: '300px', lineHeight: 1.5 }}>
-          StellarMind requires a landscape orientation for optimal cosmic exploration.
+          StellarMind is a complex cosmic interface that requires a desktop or tablet for optimal navigation.
         </p>
       </div>
 
@@ -335,7 +387,7 @@ function App() {
       {/* HUD Vertical Toolbar (Right side) */}
       {/* HUD Vertical Toolbar (Right side) */}
       <div className="glass-panel main-toolbar">
-        <button className="toolbar-btn" onClick={() => setViewport({ x: 0, y: 0, scale: 1 })}>
+        <button className="toolbar-btn" onClick={handleResetView}>
           <Crosshair size={18} /> <span className="toolbar-label">Reset View</span>
         </button>
         
@@ -396,7 +448,7 @@ function App() {
         
         <button 
           className="toolbar-btn danger"
-          onClick={() => { setNodes([]); setConnections([]); setSelectedNodeId(null); localStorage.removeItem('stellar_mind_data'); }}
+          onClick={() => { setNodes([]); setConnections([]); setSelectedNodeId(null); localStorage.removeItem('stellar_mind_data'); sfx.play('delete'); }}
         >
           <Trash2 size={18} /> <span className="toolbar-label">Clear All</span>
         </button>
@@ -411,6 +463,41 @@ function App() {
         onPointerUp={handlePointerUp}
         onPointerLeave={handlePointerUp}
       >
+        {/* Parallax Layer 1: Distant Stars (moves very slow) */}
+        <div 
+          style={{ 
+            position: 'absolute', top: '50%', left: '50%', width: 0, height: 0,
+            transform: `translate(${viewport.x * 0.15}px, ${viewport.y * 0.15}px) scale(${viewport.scale})`,
+            pointerEvents: 'none'
+          }}
+        >
+          {bgStarsLayer1.map(star => (
+            <div key={star.id} style={{
+              position: 'absolute', left: `${star.x}px`, top: `${star.y}px`, width: `${star.size}px`, height: `${star.size}px`,
+              borderRadius: '50%', backgroundColor: '#fff', opacity: star.opacity,
+              boxShadow: `0 0 ${star.size * 2}px rgba(255,255,255,0.8)`
+            }} />
+          ))}
+        </div>
+
+        {/* Parallax Layer 2: Mid-ground Stars (moves medium slow) */}
+        <div 
+          style={{ 
+            position: 'absolute', top: '50%', left: '50%', width: 0, height: 0,
+            transform: `translate(${viewport.x * 0.4}px, ${viewport.y * 0.4}px) scale(${viewport.scale})`,
+            pointerEvents: 'none'
+          }}
+        >
+          {bgStarsLayer2.map(star => (
+            <div key={star.id} style={{
+              position: 'absolute', left: `${star.x}px`, top: `${star.y}px`, width: `${star.size}px`, height: `${star.size}px`,
+              borderRadius: '50%', backgroundColor: '#80d4ff', opacity: star.opacity,
+              boxShadow: `0 0 ${star.size * 3}px rgba(128,212,255,0.8)`
+            }} />
+          ))}
+        </div>
+
+        {/* Main Canvas Layer */}
         <div 
           style={{ 
             position: 'absolute', 
@@ -454,6 +541,7 @@ function App() {
             <div 
               key={node.id}
               className={`star-node ${selectedNodeId === node.id ? 'selected pulse-glow' : ''}`}
+              onMouseEnter={() => sfx.play('hover')}
               style={{
                 left: node.x,
                 top: node.y,
@@ -484,7 +572,7 @@ function App() {
             <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600, letterSpacing: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Star size={12} color="var(--star-glow)" /> STAR CONSOLE
             </span>
-            <button className="btn-icon" style={{ width: '28px', height: '28px' }} onClick={() => setSelectedNodeId(null)}>
+            <button className="btn-icon" style={{ width: '28px', height: '28px' }} onClick={() => { setSelectedNodeId(null); sfx.play('click'); }}>
               <X size={14} />
             </button>
           </div>

@@ -146,7 +146,7 @@ body {
   letter-spacing: 0.5px;
 }
 
-#portrait-block {
+#mobile-block {
   display: none;
   position: fixed;
   top: 0;
@@ -160,11 +160,11 @@ body {
   align-items: center;
   color: white;
   text-align: center;
-  padding: 20px;
+  padding: 40px;
 }
 
-@media screen and (max-width: 768px) and (orientation: portrait) {
-  #portrait-block {
+@media screen and (max-width: 1023px) {
+  #mobile-block {
     display: flex;
   }
 }
@@ -247,6 +247,7 @@ body {
   height: 100vh;
   pointer-events: none;
   z-index: 0;
+  overflow: visible;
 }
 
 .constellation-line {
