@@ -1,5 +1,7 @@
 # 🌌 StellarMind
 
+![StellarMind Demo](/demo.png)
+
 **StellarMind** is a breathtaking, sci-fi inspired infinite canvas application designed to map your thoughts, ideas, and knowledge as "stars" in an expansive cosmic universe. Create nodes, link them to form constellations, and explore your mind map through a deeply immersive, desktop-first experience.
 
 ---
